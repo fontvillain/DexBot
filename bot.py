@@ -1,9 +1,10 @@
-import discord import Intents 
-from discord.ext import commands
+import os
 import re
 import requests
+import discord
+from discord.ext import commands
 
-# Initialize the bot
+# Initialize the bot with intents
 intents = discord.Intents.default()
 intents.messages = True  # Enable message intents
 intents.message_content = True  # Required to read message content
@@ -28,7 +29,9 @@ class RefreshButton(discord.ui.View):
         # Fetch the latest data
         data = fetch_dexscreener_data(self.contract_address)
         if not data or "pairs" not in data:
-            await interaction.response.send_message("Unable to fetch updated data. Please try again later.", ephemeral=True)
+            await interaction.response.send_message(
+                "Unable to fetch updated data. Please try again later.", ephemeral=True
+            )
             return
 
         pair_data = data["pairs"][0]
@@ -40,16 +43,32 @@ class RefreshButton(discord.ui.View):
         embed = discord.Embed(
             title=f"{token_name} ({token_symbol})",
             url=dex_url,
-            color=discord.Color.blue()
+            color=discord.Color.blue(),
         )
         embed.add_field(name="**Price (USD)**", value=f"${float(pair_data['priceUsd']):,.6f}", inline=True)
         embed.add_field(name="**Price (Native)**", value=f"{float(pair_data['priceNative']):,.6f}", inline=True)
-        embed.add_field(name="**Market Cap**", value=f"${int(pair_data.get('marketCap', 0)):,}" if pair_data.get('marketCap') else "N/A", inline=True)
-        embed.add_field(name="**Volume (24H)**", value=f"${float(pair_data['volume'].get('h24', 0)):,}" if pair_data['volume'].get('h24') else "N/A", inline=True)
+        embed.add_field(
+            name="**Market Cap**",
+            value=f"${int(pair_data.get('marketCap', 0)):,}" if pair_data.get("marketCap") else "N/A",
+            inline=True,
+        )
+        embed.add_field(
+            name="**Volume (24H)**",
+            value=f"${float(pair_data['volume'].get('h24', 0)):,}" if pair_data["volume"].get("h24") else "N/A",
+            inline=True,
+        )
         embed.add_field(name="**Buys (24H)**", value=f"{pair_data['txns']['h24'].get('buys', 'N/A')}", inline=True)
         embed.add_field(name="**Sells (24H)**", value=f"{pair_data['txns']['h24'].get('sells', 'N/A')}", inline=True)
-        embed.add_field(name="**Liquidity (USD)**", value=f"${float(pair_data['liquidity'].get('usd', 0)):,}" if pair_data['liquidity'].get('usd') else "N/A", inline=True)
-        embed.add_field(name="**Fully Diluted Valuation (FDV)**", value=f"${int(pair_data.get('fdv', 0)):,}" if pair_data.get('fdv') else "N/A", inline=True)
+        embed.add_field(
+            name="**Liquidity (USD)**",
+            value=f"${float(pair_data['liquidity'].get('usd', 0)):,}" if pair_data["liquidity"].get("usd") else "N/A",
+            inline=True,
+        )
+        embed.add_field(
+            name="**Fully Diluted Valuation (FDV)**",
+            value=f"${int(pair_data.get('fdv', 0)):,}" if pair_data.get("fdv") else "N/A",
+            inline=True,
+        )
         embed.set_footer(text="Powered by DexyDex - Will you Ape in?")
 
         await interaction.response.edit_message(embed=embed, view=self)
@@ -88,16 +107,32 @@ async def on_message(message):
         embed = discord.Embed(
             title=f"{token_name} ({token_symbol})",
             url=dex_url,
-            color=discord.Color.blue()
+            color=discord.Color.blue(),
         )
         embed.add_field(name="**Price (USD)**", value=f"${float(pair_data['priceUsd']):,.6f}", inline=True)
         embed.add_field(name="**Price (Native)**", value=f"{float(pair_data['priceNative']):,.6f}", inline=True)
-        embed.add_field(name="**Market Cap**", value=f"${int(pair_data.get('marketCap', 0)):,}" if pair_data.get('marketCap') else "N/A", inline=True)
-        embed.add_field(name="**Volume (24H)**", value=f"${float(pair_data['volume'].get('h24', 0)):,}" if pair_data['volume'].get('h24') else "N/A", inline=True)
+        embed.add_field(
+            name="**Market Cap**",
+            value=f"${int(pair_data.get('marketCap', 0)):,}" if pair_data.get("marketCap") else "N/A",
+            inline=True,
+        )
+        embed.add_field(
+            name="**Volume (24H)**",
+            value=f"${float(pair_data['volume'].get('h24', 0)):,}" if pair_data["volume"].get("h24") else "N/A",
+            inline=True,
+        )
         embed.add_field(name="**Buys (24H)**", value=f"{pair_data['txns']['h24'].get('buys', 'N/A')}", inline=True)
         embed.add_field(name="**Sells (24H)**", value=f"{pair_data['txns']['h24'].get('sells', 'N/A')}", inline=True)
-        embed.add_field(name="**Liquidity (USD)**", value=f"${float(pair_data['liquidity'].get('usd', 0)):,}" if pair_data['liquidity'].get('usd') else "N/A", inline=True)
-        embed.add_field(name="**Fully Diluted Valuation (FDV)**", value=f"${int(pair_data.get('fdv', 0)):,}" if pair_data.get('fdv') else "N/A", inline=True)
+        embed.add_field(
+            name="**Liquidity (USD)**",
+            value=f"${float(pair_data['liquidity'].get('usd', 0)):,}" if pair_data["liquidity"].get("usd") else "N/A",
+            inline=True,
+        )
+        embed.add_field(
+            name="**Fully Diluted Valuation (FDV)**",
+            value=f"${int(pair_data.get('fdv', 0)):,}" if pair_data.get("fdv") else "N/A",
+            inline=True,
+        )
         embed.set_footer(text="Powered by DexyDex - Will you Ape in?")
 
         # Add a refresh button
@@ -108,5 +143,4 @@ async def on_message(message):
     await bot.process_commands(message)
 
 # Run the bot
-import os
 bot.run(os.getenv("DISCORD_BOT_TOKEN"))
