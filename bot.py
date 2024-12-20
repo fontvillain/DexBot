@@ -22,7 +22,8 @@ intents.messages = True
 intents.message_content = True  # Enable Message Content Intent
 bot = commands.Bot(command_prefix="/", intents=intents)
 
-# Regular expression for Solana contract addresses
+# Regular expression for contract addresses
+eth_contract_pattern = r"0x[a-fA-F0-9]{40}"
 sol_regex = r"[1-9A-HJ-NP-Za-km-z]{32,44}"
 
 # Function to fetch DexScreener data
@@ -131,7 +132,6 @@ async def on_message(message):
     if message.author.bot:
         return
 
-    eth_contract_pattern = r"0x[a-fA-F0-9]{40}"
     eth_match = re.search(eth_contract_pattern, message.content)
     sol_match = re.search(sol_regex, message.content)
 
