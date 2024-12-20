@@ -69,6 +69,12 @@ class RefreshButton(discord.ui.View):
             value=f"${int(pair_data.get('fdv', 0)):,}" if pair_data.get("fdv") else "N/A",
             inline=True,
         )
+
+        # Add token image if available
+        image_url = pair_data["baseToken"].get("logoURI")
+        if image_url:
+            embed.set_thumbnail(url=image_url)
+
         embed.set_footer(text="Powered by DexyDex - Will you Ape in?")
 
         await interaction.response.edit_message(embed=embed, view=self)
@@ -133,6 +139,12 @@ async def on_message(message):
             value=f"${int(pair_data.get('fdv', 0)):,}" if pair_data.get("fdv") else "N/A",
             inline=True,
         )
+
+        # Add token image if available
+        image_url = pair_data["baseToken"].get("logoURI")
+        if image_url:
+            embed.set_thumbnail(url=image_url)
+
         embed.set_footer(text="Powered by DexyDex - Will you Ape in?")
 
         # Add a refresh button
