@@ -3,16 +3,12 @@ import re
 import requests
 import discord
 from discord.ext import commands
-from dotenv import load_dotenv
 import logging
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 
-# Load environment variables from .env file
-load_dotenv()
-
-# Get the bot token and API URLs/keys from the .env file
+# Get the bot token and API URLs/keys from the environment
 TOKEN = os.getenv('DISCORD_BOT_TOKEN')
 SOLANA_RPC_URL = os.getenv('SOLANA_RPC_URL', 'https://api.mainnet-beta.solana.com')  # Default RPC URL
 
@@ -136,6 +132,7 @@ def create_dex_embed(pair_data):
 @bot.event
 async def on_ready():
     logging.info(f'Logged in as {bot.user}')
+    logging.info(f'Solana RPC URL: {SOLANA_RPC_URL}')
     logging.info('Bot is ready and connected to the server.')
 
 @bot.event
