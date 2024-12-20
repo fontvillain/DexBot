@@ -3,12 +3,16 @@ import re
 import requests
 import discord
 from discord.ext import commands
+from dotenv import load_dotenv
 import logging
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 
-# Get the bot token and API URLs/keys from the environment
+# Load environment variables from .env file
+load_dotenv()
+
+# Get the bot token and API URLs/keys from the .env file
 TOKEN = os.getenv('DISCORD_BOT_TOKEN')
 SOLANA_RPC_URL = os.getenv('SOLANA_RPC_URL', 'https://api.mainnet-beta.solana.com')  # Default RPC URL
 
@@ -16,14 +20,12 @@ SOLANA_RPC_URL = os.getenv('SOLANA_RPC_URL', 'https://api.mainnet-beta.solana.co
 intents = discord.Intents.default()
 intents.messages = True
 intents.message_content = True  # Enable Message Content Intent
-
 bot = commands.Bot(command_prefix="/", intents=intents)
 
-# Regular expression patterns
-eth_contract_pattern = r"0x[a-fA-F0-9]{40}"
-sol_contract_pattern = r"[1-9A-HJ-NP-Za-km-z]{32,44}"
+# Regular expression for Solana contract addresses
+sol_regex = r"[1-9A-HJ-NP-Za-km-z]{32,44}"
 
-# Fetch DexScreener data
+# Function to fetch DexScreener data
 def fetch_dexscreener_data(contract_address):
     url = f"https://api.dexscreener.com/latest/dex/tokens/{contract_address}"
     response = requests.get(url)
@@ -31,9 +33,10 @@ def fetch_dexscreener_data(contract_address):
         return response.json()
     return None
 
-# Check bundled wallets
+# Function to check for bundled wallets
 def check_bundled_wallets(contract_address):
     # Placeholder for realistic API or database integration
+    # Replace this with real logic or API requests for each contract_address
     bundled_wallets_data = {
         "DHiaQfK1z9WFkbyKcVrC9zATtFSSWov6cctgcuJpump": [
             {"bundle": 1, "tokens": 1.5, "percentage": 5.2, "sol_spent": 0.3, "held_percentage": 4.8},
@@ -61,9 +64,45 @@ def check_bundled_wallets(contract_address):
 """
     return details
 
-# Create Discord embed
-def create_embed(title, description, fields=None, color=0x3498db):
+# Function to create a Discord embed
+def create_embed(pair_data=None, title=None, description=None, fields=None, color=0x3498db):
     embed = discord.Embed(title=title, description=description, color=color)
+    if pair_data:
+        token_name = pair_data["baseToken"]["name"]
+        token_symbol = pair_data["baseToken"]["symbol"]
+        dex_url = pair_data["url"]
+
+        embed.title = f"{token_name} ({token_symbol})"
+        embed.url = dex_url
+        embed.add_field(name="**Price (USD)**", value=f"${float(pair_data['priceUsd']):,.6f}", inline=True)
+        embed.add_field(name="**Price (Native)**", value=f"{float(pair_data['priceNative']):,.6f}", inline=True)
+        embed.add_field(
+            name="**Market Cap**",
+            value=f"${int(pair_data.get('marketCap', 0)):,}" if pair_data.get("marketCap") else "N/A",
+            inline=True,
+        )
+        embed.add_field(
+            name="**Volume (24H)**",
+            value=f"${float(pair_data['volume'].get('h24', 0)):,}" if pair_data["volume"].get("h24") else "N/A",
+            inline=True,
+        )
+        embed.add_field(name="**Buys (24H)**", value=f"{pair_data['txns']['h24'].get('buys', 'N/A')}", inline=True)
+        embed.add_field(name="**Sells (24H)**", value=f"{pair_data['txns']['h24'].get('sells', 'N/A')}", inline=True)
+        embed.add_field(
+            name="**Liquidity (USD)**",
+            value=f"${float(pair_data['liquidity'].get('usd', 0)):,}" if pair_data["liquidity"].get("usd") else "N/A",
+            inline=True,
+        )
+        embed.add_field(
+            name="**Fully Diluted Valuation (FDV)**",
+            value=f"${int(pair_data.get('fdv', 0)):,}" if pair_data.get("fdv") else "N/A",
+            inline=True,
+        )
+        image_url = pair_data["baseToken"].get("logoURI")
+        if image_url:
+            embed.set_thumbnail(url=image_url)
+
+        embed.set_footer(text="Powered by DexyDex - Will you Ape in?")
     if fields:
         for name, value, inline in fields:
             embed.add_field(name=name, value=value, inline=inline)
@@ -84,85 +123,34 @@ class RefreshButton(discord.ui.View):
             return
 
         pair_data = data["pairs"][0]
-        embed = create_dex_embed(pair_data)
+        embed = create_embed(pair_data=pair_data)
         await interaction.response.edit_message(embed=embed, view=self)
-
-def create_dex_embed(pair_data):
-    token_name = pair_data["baseToken"]["name"]
-    token_symbol = pair_data["baseToken"]["symbol"]
-    dex_url = pair_data["url"]
-
-    embed = discord.Embed(
-        title=f"{token_name} ({token_symbol})",
-        url=dex_url,
-        color=discord.Color.blue(),
-    )
-    embed.add_field(name="**Price (USD)**", value=f"${float(pair_data['priceUsd']):,.6f}", inline=True)
-    embed.add_field(name="**Price (Native)**", value=f"{float(pair_data['priceNative']):,.6f}", inline=True)
-    embed.add_field(
-        name="**Market Cap**",
-        value=f"${int(pair_data.get('marketCap', 0)):,}" if pair_data.get("marketCap") else "N/A",
-        inline=True,
-    )
-    embed.add_field(
-        name="**Volume (24H)**",
-        value=f"${float(pair_data['volume'].get('h24', 0)):,}" if pair_data["volume"].get("h24") else "N/A",
-        inline=True,
-    )
-    embed.add_field(name="**Buys (24H)**", value=f"{pair_data['txns']['h24'].get('buys', 'N/A')}", inline=True)
-    embed.add_field(name="**Sells (24H)**", value=f"{pair_data['txns']['h24'].get('sells', 'N/A')}", inline=True)
-    embed.add_field(
-        name="**Liquidity (USD)**",
-        value=f"${float(pair_data['liquidity'].get('usd', 0)):,}" if pair_data["liquidity"].get("usd") else "N/A",
-        inline=True,
-    )
-    embed.add_field(
-        name="**Fully Diluted Valuation (FDV)**",
-        value=f"${int(pair_data.get('fdv', 0)):,}" if pair_data.get("fdv") else "N/A",
-        inline=True,
-    )
-
-    image_url = pair_data["baseToken"].get("logoURI")
-    if image_url:
-        embed.set_thumbnail(url=image_url)
-
-    embed.set_footer(text="Powered by DexyDex - Will you Ape in?")
-    return embed
-
-@bot.event
-async def on_ready():
-    logging.info(f'Logged in as {bot.user}')
-    logging.info(f'Solana RPC URL: {SOLANA_RPC_URL}')
-    logging.info('Bot is ready and connected to the server.')
 
 @bot.event
 async def on_message(message):
-    logging.info(f"Received message: {message.content} from {message.author}")
     if message.author.bot:
         return
 
+    eth_contract_pattern = r"0x[a-fA-F0-9]{40}"
     eth_match = re.search(eth_contract_pattern, message.content)
-    sol_match = re.search(sol_contract_pattern, message.content)
+    sol_match = re.search(sol_regex, message.content)
 
     contract_address = eth_match.group(0) if eth_match else sol_match.group(0) if sol_match else None
 
     if contract_address:
         if eth_match:
             await message.channel.send(f"Detected Ethereum contract address: `{contract_address}`. Fetching data...")
-
             data = fetch_dexscreener_data(contract_address)
             if not data or "pairs" not in data:
                 await message.channel.send("Unable to fetch data. Please check the contract address.")
                 return
 
             pair_data = data["pairs"][0]
-            embed = create_dex_embed(pair_data)
-
+            embed = create_embed(pair_data=pair_data)
             view = RefreshButton(contract_address=contract_address)
             await message.channel.send(embed=embed, view=view)
-
         elif sol_match:
-            await message.channel.send(f"\ud83d\udd0d Detected Solana contract address: {contract_address}")
+            await message.channel.send(f"\ud83d\udd0d Detected Solana contract address: `{contract_address}`")
 
             # Check bundled wallets
             bundled_wallets_result = check_bundled_wallets(contract_address)
@@ -177,4 +165,10 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
-bot.run(TOKEN)
+async def main():
+    async with bot:
+        await bot.start(TOKEN)
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())
