@@ -20,7 +20,7 @@ def fetch_dexscreener_data(contract_address):
 
 # Button View for Refresh and Open in Bullx Neo
 class RefreshButton(discord.ui.View):
-    def __init__(self, contract_address, bullx_neo_base_url="https://bullxneo.com/"):
+    def __init__(self, contract_address, bullx_neo_base_url="https://neo.bullx.io/"):
         super().__init__(timeout=None)
         self.contract_address = contract_address
         self.bullx_neo_base_url = bullx_neo_base_url
