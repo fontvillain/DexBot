@@ -25,6 +25,10 @@ class RefreshButton(discord.ui.View):
         self.contract_address = contract_address
         self.bullx_neo_base_url = bullx_neo_base_url
 
+        # Add a "Open in Bullx Neo" button
+        bullx_neo_url = f"{self.bullx_neo_base_url}{self.contract_address}"
+        self.add_item(discord.ui.Button(label="Open in Bullx Neo", style=discord.ButtonStyle.link, url=bullx_neo_url))
+
     @discord.ui.button(label="Refresh", style=discord.ButtonStyle.green)
     async def refresh(self, interaction: discord.Interaction, button: discord.ui.Button):
         # Fetch the latest data
@@ -73,11 +77,6 @@ class RefreshButton(discord.ui.View):
         embed.set_footer(text="Powered by DexyDex - Will you Ape in?")
 
         await interaction.response.edit_message(embed=embed, view=self)
-
-    @discord.ui.button(label="Open in Bullx Neo", style=discord.ButtonStyle.link, url="")
-    async def open_in_bullxneo(self, interaction: discord.Interaction, button: discord.ui.Button):
-        button.url = f"{self.bullx_neo_base_url}{self.contract_address}"
-        # No further interaction handling is needed for link buttons.
 
 # Event to detect messages with contract addresses
 @bot.event
