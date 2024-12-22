@@ -10,12 +10,6 @@ intents.messages = True  # Enable message intents
 intents.message_content = True  # Required to read message content
 bot = commands.Bot(command_prefix="/", intents=intents)
 
-# Function to fetch chart link from Bullx Neo
-def fetch_bullxneo_chart_url(contract_address):
-    # Replace the chainId with the appropriate value for your chain
-    chain_id = "1399811149"  # Example chainId for the chart
-    return f"https://neo.bullx.io/terminal?chainId={chain_id}&address={contract_address}"
-
 # Function to fetch data from DexScreener API
 def fetch_dexscreener_data(contract_address):
     url = f"https://api.dexscreener.com/latest/dex/tokens/{contract_address}"
@@ -24,11 +18,28 @@ def fetch_dexscreener_data(contract_address):
         return response.json()
     return None
 
+# Function to fetch Bullx Neo coin data
+def fetch_bullxneo_data(contract_address):
+    try:
+        url = f"https://neo.bullx.io/api/coins/{contract_address}"  # Example endpoint
+        response = requests.get(url)
+        if response.status_code == 200:
+            return response.json()
+    except Exception as e:
+        print(f"Error fetching data from Bullx Neo: {e}")
+    return None
+
+# Function to fetch Bullx Neo chart URL
+def fetch_bullxneo_chart_url(contract_address):
+    chain_id = "1399811149"  # Example chainId
+    return f"https://neo.bullx.io/terminal?chainId={chain_id}&address={contract_address}"
+
 # Button View for Refresh and Open in Bullx Neo
 class RefreshButton(discord.ui.View):
-    def __init__(self, contract_address, chart_url):
+    def __init__(self, contract_address, chart_url, source="DexScreener"):
         super().__init__(timeout=None)
         self.contract_address = contract_address
+        self.source = source
 
         # Add a "Open in Bullx Neo" button with the fetched chart URL
         if chart_url:
@@ -36,51 +47,48 @@ class RefreshButton(discord.ui.View):
 
     @discord.ui.button(label="Refresh", style=discord.ButtonStyle.green)
     async def refresh(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Fetch the latest data
-        data = fetch_dexscreener_data(self.contract_address)
-        if not data or "pairs" not in data:
+        # Fetch the latest data from the source
+        if self.source == "DexScreener":
+            data = fetch_dexscreener_data(self.contract_address)
+        else:
+            data = fetch_bullxneo_data(self.contract_address)
+
+        if not data:
             await interaction.response.send_message(
-                "Unable to fetch updated data. Please try again later.", ephemeral=True
+                f"Unable to fetch updated data from {self.source}. Please try again later.", ephemeral=True
             )
             return
 
-        pair_data = data["pairs"][0]
-        token_name = pair_data["baseToken"]["name"]
-        token_symbol = pair_data["baseToken"]["symbol"]
-        dex_url = pair_data["url"]
+        # Process data and build embed
+        if self.source == "DexScreener":
+            pair_data = data["pairs"][0]
+            token_name = pair_data["baseToken"]["name"]
+            token_symbol = pair_data["baseToken"]["symbol"]
+            dex_url = pair_data["url"]
 
-        # Build the updated embed
-        embed = discord.Embed(
-            title=f"{token_name} ({token_symbol})",
-            url=dex_url,
-            color=discord.Color.blue(),
-        )
-        embed.add_field(name="**Price (USD)**", value=f"${float(pair_data['priceUsd']):,.6f}", inline=True)
-        embed.add_field(name="**Price (Native)**", value=f"{float(pair_data['priceNative']):,.6f}", inline=True)
-        embed.add_field(
-            name="**Market Cap**",
-            value=f"${int(pair_data.get('marketCap', 0)):,}" if pair_data.get("marketCap") else "N/A",
-            inline=True,
-        )
-        embed.add_field(
-            name="**Volume (24H)**",
-            value=f"${float(pair_data['volume'].get('h24', 0)):,}" if pair_data["volume"].get("h24") else "N/A",
-            inline=True,
-        )
-        embed.add_field(name="**Buys (24H)**", value=f"{pair_data['txns']['h24'].get('buys', 'N/A')}", inline=True)
-        embed.add_field(name="**Sells (24H)**", value=f"{pair_data['txns']['h24'].get('sells', 'N/A')}", inline=True)
-        embed.add_field(
-            name="**Liquidity (USD)**",
-            value=f"${float(pair_data['liquidity'].get('usd', 0)):,}" if pair_data["liquidity"].get("usd") else "N/A",
-            inline=True,
-        )
-        embed.add_field(
-            name="**Fully Diluted Valuation (FDV)**",
-            value=f"${int(pair_data.get('fdv', 0)):,}" if pair_data.get("fdv") else "N/A",
-            inline=True,
-        )
-        embed.set_footer(text="Powered by DexyDex - Will you Ape in?")
+            embed = discord.Embed(
+                title=f"{token_name} ({token_symbol})",
+                url=dex_url,
+                color=discord.Color.blue(),
+            )
+            embed.add_field(name="**Price (USD)**", value=f"${float(pair_data['priceUsd']):,.6f}", inline=True)
+            embed.add_field(name="**Price (Native)**", value=f"{float(pair_data['priceNative']):,.6f}", inline=True)
+            embed.add_field(
+                name="**Market Cap**",
+                value=f"${int(pair_data.get('marketCap', 0)):,}" if pair_data.get("marketCap") else "N/A",
+                inline=True,
+            )
+        else:  # Bullx Neo
+            token_name = data.get("name", "Unknown")
+            token_symbol = data.get("symbol", "Unknown")
+            embed = discord.Embed(
+                title=f"{token_name} ({token_symbol})",
+                color=discord.Color.purple(),
+            )
+            embed.add_field(name="**Price (USD)**", value=data.get("price_usd", "N/A"), inline=True)
+            embed.add_field(name="**Market Cap**", value=data.get("market_cap", "N/A"), inline=True)
 
+        embed.set_footer(text=f"Powered by {self.source} - Will you Ape in?")
         await interaction.response.edit_message(embed=embed, view=self)
 
 # Event to detect messages with contract addresses
@@ -102,54 +110,54 @@ async def on_message(message):
     if contract_address:
         await message.channel.send(f"Detected contract address: `{contract_address}`. Fetching data...")
 
-        # Fetch DexScreener data
+        # Attempt to fetch from DexScreener
         data = fetch_dexscreener_data(contract_address)
+        source = "DexScreener"
         if not data or "pairs" not in data:
+            # If not found on DexScreener, check Bullx Neo
+            data = fetch_bullxneo_data(contract_address)
+            source = "Bullx Neo"
+
+        if not data:
             await message.channel.send("Unable to fetch data. Please check the contract address.")
             return
 
         # Fetch the Bullx Neo chart URL
         chart_url = fetch_bullxneo_chart_url(contract_address)
 
-        pair_data = data["pairs"][0]
-        token_name = pair_data["baseToken"]["name"]
-        token_symbol = pair_data["baseToken"]["symbol"]
-        dex_url = pair_data["url"]
-
         # Create the embed
-        embed = discord.Embed(
-            title=f"{token_name} ({token_symbol})",
-            url=dex_url,
-            color=discord.Color.blue(),
-        )
-        embed.add_field(name="**Price (USD)**", value=f"${float(pair_data['priceUsd']):,.6f}", inline=True)
-        embed.add_field(name="**Price (Native)**", value=f"{float(pair_data['priceNative']):,.6f}", inline=True)
-        embed.add_field(
-            name="**Market Cap**",
-            value=f"${int(pair_data.get('marketCap', 0)):,}" if pair_data.get("marketCap") else "N/A",
-            inline=True,
-        )
-        embed.add_field(
-            name="**Volume (24H)**",
-            value=f"${float(pair_data['volume'].get('h24', 0)):,}" if pair_data["volume"].get("h24") else "N/A",
-            inline=True,
-        )
-        embed.add_field(name="**Buys (24H)**", value=f"{pair_data['txns']['h24'].get('buys', 'N/A')}", inline=True)
-        embed.add_field(name="**Sells (24H)**", value=f"{pair_data['txns']['h24'].get('sells', 'N/A')}", inline=True)
-        embed.add_field(
-            name="**Liquidity (USD)**",
-            value=f"${float(pair_data['liquidity'].get('usd', 0)):,}" if pair_data["liquidity"].get("usd") else "N/A",
-            inline=True,
-        )
-        embed.add_field(
-            name="**Fully Diluted Valuation (FDV)**",
-            value=f"${int(pair_data.get('fdv', 0)):,}" if pair_data.get("fdv") else "N/A",
-            inline=True,
-        )
-        embed.set_footer(text="Powered by DexyDex - Will you Ape in?")
+        if source == "DexScreener":
+            pair_data = data["pairs"][0]
+            token_name = pair_data["baseToken"]["name"]
+            token_symbol = pair_data["baseToken"]["symbol"]
+            dex_url = pair_data["url"]
+
+            embed = discord.Embed(
+                title=f"{token_name} ({token_symbol})",
+                url=dex_url,
+                color=discord.Color.blue(),
+            )
+            embed.add_field(name="**Price (USD)**", value=f"${float(pair_data['priceUsd']):,.6f}", inline=True)
+            embed.add_field(name="**Price (Native)**", value=f"{float(pair_data['priceNative']):,.6f}", inline=True)
+            embed.add_field(
+                name="**Market Cap**",
+                value=f"${int(pair_data.get('marketCap', 0)):,}" if pair_data.get("marketCap") else "N/A",
+                inline=True,
+            )
+        else:  # Bullx Neo
+            token_name = data.get("name", "Unknown")
+            token_symbol = data.get("symbol", "Unknown")
+            embed = discord.Embed(
+                title=f"{token_name} ({token_symbol})",
+                color=discord.Color.purple(),
+            )
+            embed.add_field(name="**Price (USD)**", value=data.get("price_usd", "N/A"), inline=True)
+            embed.add_field(name="**Market Cap**", value=data.get("market_cap", "N/A"), inline=True)
+
+        embed.set_footer(text=f"Powered by {source} - Will you Ape in?")
 
         # Add buttons for refresh and open in Bullx Neo
-        view = RefreshButton(contract_address=contract_address, chart_url=chart_url)
+        view = RefreshButton(contract_address=contract_address, chart_url=chart_url, source=source)
         await message.channel.send(embed=embed, view=view)
 
     # Ensure bot processes commands if message is also a command
