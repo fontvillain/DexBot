@@ -10,6 +10,12 @@ intents.messages = True  # Enable message intents
 intents.message_content = True  # Required to read message content
 bot = commands.Bot(command_prefix="/", intents=intents)
 
+# Function to fetch chart link from Bullx Neo
+def fetch_bullxneo_chart_url(contract_address):
+    # Replace the chainId with the appropriate value for your chain
+    chain_id = "1399811149"  # Example chainId for the chart
+    return f"https://neo.bullx.io/terminal?chainId={chain_id}&address={contract_address}"
+
 # Function to fetch data from DexScreener API
 def fetch_dexscreener_data(contract_address):
     url = f"https://api.dexscreener.com/latest/dex/tokens/{contract_address}"
@@ -20,14 +26,13 @@ def fetch_dexscreener_data(contract_address):
 
 # Button View for Refresh and Open in Bullx Neo
 class RefreshButton(discord.ui.View):
-    def __init__(self, contract_address, bullx_neo_base_url="https://neo.bullx.io/"):
+    def __init__(self, contract_address, chart_url):
         super().__init__(timeout=None)
         self.contract_address = contract_address
-        self.bullx_neo_base_url = bullx_neo_base_url
 
-        # Add a "Open in Bullx Neo" button
-        bullx_neo_url = f"{self.bullx_neo_base_url}{self.contract_address}"
-        self.add_item(discord.ui.Button(label="Open in Bullx Neo", style=discord.ButtonStyle.link, url=bullx_neo_url))
+        # Add a "Open in Bullx Neo" button with the fetched chart URL
+        if chart_url:
+            self.add_item(discord.ui.Button(label="Open in Bullx Neo", style=discord.ButtonStyle.link, url=chart_url))
 
     @discord.ui.button(label="Refresh", style=discord.ButtonStyle.green)
     async def refresh(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -103,6 +108,9 @@ async def on_message(message):
             await message.channel.send("Unable to fetch data. Please check the contract address.")
             return
 
+        # Fetch the Bullx Neo chart URL
+        chart_url = fetch_bullxneo_chart_url(contract_address)
+
         pair_data = data["pairs"][0]
         token_name = pair_data["baseToken"]["name"]
         token_symbol = pair_data["baseToken"]["symbol"]
@@ -141,7 +149,7 @@ async def on_message(message):
         embed.set_footer(text="Powered by DexyDex - Will you Ape in?")
 
         # Add buttons for refresh and open in Bullx Neo
-        view = RefreshButton(contract_address=contract_address)
+        view = RefreshButton(contract_address=contract_address, chart_url=chart_url)
         await message.channel.send(embed=embed, view=view)
 
     # Ensure bot processes commands if message is also a command
