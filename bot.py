@@ -61,6 +61,10 @@ class RefreshButton(discord.ui.View):
 
         # Process data and build embed
         if self.source == "DexScreener":
+            if "pairs" not in data or not data["pairs"]:
+                await interaction.response.send_message("No pairs found on DexScreener for this contract address.")
+                return
+
             pair_data = data["pairs"][0]
             token_name = pair_data["baseToken"]["name"]
             token_symbol = pair_data["baseToken"]["symbol"]
