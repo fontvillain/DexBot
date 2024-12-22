@@ -18,11 +18,12 @@ def fetch_dexscreener_data(contract_address):
         return response.json()
     return None
 
-# Button View for Refresh
+# Button View for Refresh and Open in Bullx Neo
 class RefreshButton(discord.ui.View):
-    def __init__(self, contract_address):
+    def __init__(self, contract_address, bullx_neo_base_url="https://bullxneo.com/"):
         super().__init__(timeout=None)
         self.contract_address = contract_address
+        self.bullx_neo_base_url = bullx_neo_base_url
 
     @discord.ui.button(label="Refresh", style=discord.ButtonStyle.green)
     async def refresh(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -72,6 +73,11 @@ class RefreshButton(discord.ui.View):
         embed.set_footer(text="Powered by DexyDex - Will you Ape in?")
 
         await interaction.response.edit_message(embed=embed, view=self)
+
+    @discord.ui.button(label="Open in Bullx Neo", style=discord.ButtonStyle.link, url="")
+    async def open_in_bullxneo(self, interaction: discord.Interaction, button: discord.ui.Button):
+        button.url = f"{self.bullx_neo_base_url}{self.contract_address}"
+        # No further interaction handling is needed for link buttons.
 
 # Event to detect messages with contract addresses
 @bot.event
@@ -135,7 +141,7 @@ async def on_message(message):
         )
         embed.set_footer(text="Powered by DexyDex - Will you Ape in?")
 
-        # Add a refresh button
+        # Add buttons for refresh and open in Bullx Neo
         view = RefreshButton(contract_address=contract_address)
         await message.channel.send(embed=embed, view=view)
 
